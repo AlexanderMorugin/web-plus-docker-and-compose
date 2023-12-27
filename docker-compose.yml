@@ -30,8 +30,8 @@ services:
       - network
     restart: always   
 
-  database:
-    container_name: kupipodariday-postgres
+  postgres:
+    container_name: postgres
     image: "postgres:12"
     networks:
       - database-network
@@ -41,7 +41,7 @@ services:
       # - postgres_data:/data/database
       # - volume:/var/lib/postgresql/data
       # - postgres_data:/data/postgres
-      - volume:/data/database
+      - volume:/data/postgres
     env_file: 
       - .env
     restart: always  
