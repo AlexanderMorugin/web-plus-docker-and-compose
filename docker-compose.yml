@@ -15,9 +15,9 @@ services:
       - network
       - database-network
     links:
-      - database
+      - postgres
     depends_on:
-      - database
+      - postgres
 
   frontend:
     container_name: kupipodariday-frontend
@@ -35,8 +35,8 @@ services:
     image: "postgres:12"
     networks:
       - database-network
-    ports:
-      - "5432:5432"
+    # ports:
+    #   - "5432:5432"
     volumes:
       # - postgres_data:/data/database
       # - volume:/var/lib/postgresql/data
