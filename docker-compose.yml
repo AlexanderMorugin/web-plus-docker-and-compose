@@ -38,8 +38,8 @@ services:
     ports:
       - "5432:5432"
     volumes:
-      # - volume:/var/lib/postgresql/data
-      - postgres_data:/data/postgres
+      - volume:/var/lib/postgresql/data
+      # - postgres_data:/data/postgres
     env_file: 
       - .env
     restart: unless-stopped   
