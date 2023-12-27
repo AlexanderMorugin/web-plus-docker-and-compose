@@ -1,25 +1,35 @@
-import { Controller, Post, Body, UseGuards, Req } from '@nestjs/common';
-import { CreateUserDto } from 'src/users/dto/create-user.dto';
+import {
+  Controller,
+  Post,
+  Body,
+  UseGuards,
+  Req,
+  UseFilters,
+} from '@nestjs/common';
 import { UsersService } from 'src/users/users.service';
 import { AuthService } from './auth.service';
-import { LocalAuthGuard } from './guards/local-auth.guard';
-import { User } from 'src/users/entities/user.entity';
+import { CreateUserDto } from '../users/dto/createUser.dto';
+import { LocalAuthGuard } from '../auth/guards/local.guard';
+import { User } from 'src/users/entity/user.entity';
+import { InvalidDataExceptionFilter } from 'src/filters/invalid-data-exception.filter';
 
+@UseFilters(InvalidDataExceptionFilter)
 @Controller()
 export class AuthController {
   constructor(
-    private readonly authService: AuthService,
-    private readonly usersService: UsersService,
+    private usersService: UsersService,
+    private authService: AuthService,
   ) {}
+
+  @Post('signup')
+  async signup(@Body() createUserDto: CreateUserDto) {
+    const user = await this.usersService.createUser(createUserDto);
+    return await this.authService.auth(user);
+  }
 
   @Post('signin')
   @UseGuards(LocalAuthGuard)
-  async login(@Req() req) {
-    return this.authService.login(req.user);
-  }
-
-  @Post('signup')
-  async create(@Body() createUserDto: CreateUserDto): Promise<User> {
-    return await this.usersService.create(createUserDto);
+  async signin(@Req() req: Request & { user: User }) {
+    return this.authService.auth(req.user);
   }
 }

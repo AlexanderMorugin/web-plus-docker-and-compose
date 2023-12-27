@@ -1,36 +1,58 @@
 import { Module } from '@nestjs/common';
+import { TypeOrmModule } from '@nestjs/typeorm';
 import { UsersModule } from './users/users.module';
 import { WishesModule } from './wishes/wishes.module';
-import { OffersModule } from './offers/offers.module';
-import { ConfigModule, ConfigService } from '@nestjs/config';
-import { TypeOrmModule } from '@nestjs/typeorm';
 import { WishlistsModule } from './wishlists/wishlists.module';
+import { OffersModule } from './offers/offers.module';
+import { HashModule } from './hash/hash.module';
 import { AuthModule } from './auth/auth.module';
+import { ConfigModule, ConfigService } from '@nestjs/config';
+import { createDbConfig } from './config/dbConfig';
+import { JwtModule } from '@nestjs/jwt';
+import { User } from './users/entity/user.entity';
+import { WishList } from './wishlists/entity/wishlist.entity';
+import { Wish } from './wishes/entity/wish.entity';
+import { Offer } from './offers/entity/offer.entity';
+import { WinstonModule } from 'nest-winston';
+import * as winston from 'winston';
+import { ThrottlerGuard, ThrottlerModule } from '@nestjs/throttler';
+import { APP_GUARD } from '@nestjs/core';
 
 @Module({
   imports: [
-    AuthModule,
-    UsersModule,
-    WishesModule,
-    OffersModule,
-    WishlistsModule,
-    ConfigModule.forRoot({ isGlobal: true }),
+    ConfigModule.forRoot(),
+    ThrottlerModule.forRoot({
+      ttl: 60,
+      limit: 100,
+    }),
+    WinstonModule.forRoot({
+      levels: {
+        critical_error: 0,
+        error: 1,
+        special_warning: 2,
+        another_log_level: 3,
+        info: 4,
+      },
+      transports: [
+        new winston.transports.Console({ format: winston.format.simple() }),
+        new winston.transports.File({ filename: 'error.log', level: 'error' }),
+      ],
+    }),
     TypeOrmModule.forRootAsync({
       imports: [ConfigModule],
-      useFactory: (configService: ConfigService) => ({
-        type: 'postgres',
-        host: configService.get('POSTGRES_HOST'),
-        port: configService.get('POSTGRES_PORT'),
-        username: configService.get('POSTGRES_USERNAME'),
-        password: configService.get('POSTGRES_PASSWORD'),
-        database: configService.get('POSTGRES_DB'),
-        synchronize: true,
-        entities: [__dirname + '/**/*.entity{.js, .ts}'],
-      }),
       inject: [ConfigService],
+      useFactory: createDbConfig,
     }),
+    TypeOrmModule.forFeature([User, Wish, WishList, Offer]),
+    UsersModule,
+    WishesModule,
+    WishlistsModule,
+    OffersModule,
+    HashModule,
+    AuthModule,
+    JwtModule,
   ],
   controllers: [],
-  providers: [],
+  providers: [{ provide: APP_GUARD, useClass: ThrottlerGuard }],
 })
 export class AppModule {}

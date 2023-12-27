@@ -1,60 +1,60 @@
-import {
-  ForbiddenException,
-  Injectable,
-  NotFoundException,
-} from '@nestjs/common';
-import { CreateOfferDto } from './dto/create-offer.dto';
+import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Offer } from './entities/offer.entity';
-import { Repository } from 'typeorm';
+import { Repository, DataSource } from 'typeorm';
+import { Offer } from './entity/offer.entity';
+import { CreateOfferDto } from './dto/createOffer.dto';
 import { WishesService } from 'src/wishes/wishes.service';
-import { User } from 'src/users/entities/user.entity';
+import { UsersService } from 'src/users/users.service';
+import { ServerException } from 'src/exceptions/server.exception';
+import { ErrorCode } from 'src/exceptions/error-codes';
 
 @Injectable()
 export class OffersService {
   constructor(
     @InjectRepository(Offer)
-    private offerRepository: Repository<Offer>,
+    private readonly offersRepository: Repository<Offer>,
     private readonly wishesService: WishesService,
+    private readonly usersService: UsersService,
+    private readonly dataSource: DataSource,
   ) {}
 
-  async create(createOfferDto: CreateOfferDto, user: User): Promise<Offer> {
-    const wishes = await this.wishesService.findOne(createOfferDto.itemId);
-    const wish = await this.wishesService.findOne(wishes.id);
-    const sum = wish.price - wish.raised;
-    const newRise = Number(wish.raised) + Number(createOfferDto.amount);
+  async createOffer(userId: number, createOfferDto: CreateOfferDto) {
+    const queryRunner = this.dataSource.createQueryRunner();
+    await queryRunner.connect();
+    await queryRunner.startTransaction();
+    try {
+      const wish = await this.wishesService.getWishById(createOfferDto.itemId);
+      if (userId === wish.owner.id) {
+        throw new ServerException(ErrorCode.OfferForbidden);
+      }
 
-    if (wish.owner.id === user.id) {
-      throw new ForbiddenException('Вы не можете поддерживать свои подарки');
-    }
-    if (createOfferDto.amount > wish.price) {
-      throw new ForbiddenException('Сумма поддержки больше стоимости подарка');
-    }
-
-    if (createOfferDto.amount > sum) {
-      throw new ForbiddenException(
-        'Сумма поддержки больше оставшейся для сбора суммы на подарок',
+      const user = await this.usersService.findById(wish.owner.id);
+      const raisedSum = Number(
+        (wish.raised + createOfferDto.amount).toFixed(2),
       );
+
+      if (raisedSum > wish.price) {
+        throw new ServerException(ErrorCode.RaisedForbidden);
+      }
+
+      await this.wishesService.updateRaised(createOfferDto.itemId, {
+        raised: raisedSum,
+      });
+
+      const offer = await this.offersRepository.save({
+        ...createOfferDto,
+        wish,
+        user,
+      });
+      await queryRunner.commitTransaction();
+      delete wish.owner.password;
+      delete user.password;
+      return offer;
+    } catch (err) {
+      await queryRunner.rollbackTransaction();
+      throw err;
+    } finally {
+      await queryRunner.release();
     }
-
-    if (wish.raised === wish.price) {
-      throw new ForbiddenException('Нужная сумма уже собрана');
-    }
-
-    await this.wishesService.updateByRise(createOfferDto.itemId, newRise);
-    const offerDto = { ...createOfferDto, user: user, item: wish };
-    return await this.offerRepository.save(offerDto);
-  }
-
-  async findOne(id: number): Promise<Offer> {
-    const offer = await this.offerRepository.findOneBy({ id });
-    if (!offer) {
-      throw new NotFoundException(`Не удалось найти заявку с id: ${id}`);
-    }
-    return offer;
-  }
-
-  async findMany(): Promise<Offer[]> {
-    return await this.offerRepository.find();
   }
 }
