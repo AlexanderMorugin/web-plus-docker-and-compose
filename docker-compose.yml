@@ -6,17 +6,18 @@ services:
     build: 
       context: ./backend
       dockerfile: Dockerfile
-    env_file: .env
+    env_file: 
+      - .env
     restart: "unless-stopped"
     ports:
       - "4000:3000"
     networks:
       - network
-      - database-network
-    links:
-      - database
-    depends_on:
-      - database
+      # - database-network
+    # links:
+    #   - database
+    # depends_on:
+    #   - database
 
   frontend:
     container_name: kupipodariday-frontend
@@ -37,8 +38,10 @@ services:
     ports:
       - "5432:5432"
     volumes:
-      - volume:/var/lib/postgresql/data
-    env_file: .env
+      # - volume:/var/lib/postgresql/data
+      - postgres_data:/data/postgres
+    env_file: 
+      - .env
     restart: unless-stopped   
 volumes:
   volume:
