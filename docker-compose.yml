@@ -14,9 +14,9 @@ services:
       - network
       - database-network
     links:
-      - kupipodariday-postgres
+      - database
     depends_on:
-      - kupipodariday-postgres
+      - database
 
   frontend:
     container_name: kupipodariday-frontend
@@ -29,7 +29,7 @@ services:
       - network
     restart: "unless-stopped"   
 
-  kupipodariday-postgres:
+  database:
     container_name: kupipodariday-postgres
     image: "postgres:12"
     networks:
@@ -50,3 +50,4 @@ networks:
   database-network: 
     driver: bridge
     internal: true
+    
