@@ -7,7 +7,7 @@ services:
       context: ./backend
       dockerfile: Dockerfile
     env_file: 
-      - .env
+      - ./backend/.env
     restart: always
     ports:
       - "4000:3000"
@@ -43,7 +43,7 @@ services:
       # - postgres_data:/data/postgres
       - volume:/data/postgres
     env_file: 
-      - .env
+      - ./backend/.env
     restart: always  
 
 volumes:
