@@ -14,9 +14,9 @@ services:
       - network
       - database-network
     links:
-      - database
+      - postgres
     depends_on:
-      - database
+      - postgres
 
   frontend:
     container_name: kupipodariday-frontend
