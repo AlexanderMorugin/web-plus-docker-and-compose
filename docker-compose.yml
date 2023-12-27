@@ -13,11 +13,11 @@ services:
       - "4000:3000"
     networks:
       - network
-      # - database-network
-    # links:
-    #   - database
-    # depends_on:
-    #   - database
+      - database-network
+    links:
+      - database
+    depends_on:
+      - database
 
   frontend:
     container_name: kupipodariday-frontend
@@ -38,8 +38,9 @@ services:
     ports:
       - "5432:5432"
     volumes:
-      - volume:/var/lib/postgresql/data
+      # - volume:/var/lib/postgresql/data
       # - postgres_data:/data/postgres
+      - volume:/data/postgres
     env_file: 
       - .env
     restart: unless-stopped   
