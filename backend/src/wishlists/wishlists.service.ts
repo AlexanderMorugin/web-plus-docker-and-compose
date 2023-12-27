@@ -1,79 +1,103 @@
-import { Injectable } from '@nestjs/common';
-import { WishList } from './entity/wishlist.entity';
-import { CreateWishlistDto } from './dto/createWishlist.dto';
-import { Repository, DataSource } from 'typeorm';
+import { BadRequestException, Injectable } from '@nestjs/common';
+import { CreateWishlistDto } from './dto/create-wishlist.dto';
+import { UpdateWishlistDto } from './dto/update-wishlist.dto';
 import { InjectRepository } from '@nestjs/typeorm';
+import { Wishlist } from './entities/wishlist.entity';
+import { Repository } from 'typeorm';
 import { WishesService } from 'src/wishes/wishes.service';
-import { UsersService } from 'src/users/users.service';
-import { ServerException } from 'src/exceptions/server.exception';
-import { ErrorCode } from 'src/exceptions/error-codes';
+import { User } from 'src/users/entities/user.entity';
 
 @Injectable()
 export class WishlistsService {
   constructor(
-    @InjectRepository(WishList)
-    private readonly wishlistsRepository: Repository<WishList>,
+    @InjectRepository(Wishlist)
+    private readonly wishlistsRepository: Repository<Wishlist>,
     private readonly wishesService: WishesService,
-    private readonly usersService: UsersService,
-    private readonly dataSource: DataSource,
   ) {}
 
-  async findAll() {
+  async findAll(): Promise<Wishlist[]> {
     const wishlists = await this.wishlistsRepository.find({
       relations: ['owner', 'items'],
     });
 
     if (!wishlists) {
-      throw new ServerException(ErrorCode.WishlistNotFound);
+      throw new BadRequestException('Список подарков не найден');
     }
 
     return wishlists;
   }
 
-  async createWishlist(userId: number, createWishlistDto: CreateWishlistDto) {
-    const queryRunner = this.dataSource.createQueryRunner();
-    await queryRunner.connect();
-    await queryRunner.startTransaction();
-    try {
-      const { itemsId, ...rest } = createWishlistDto;
-
-      const items = await this.wishesService.getWishListByIds(itemsId);
-      const owner = await this.usersService.findById(userId);
-
-      const wishList = await this.wishlistsRepository.save({
-        ...rest,
-        items,
-        owner,
-      });
-      await queryRunner.commitTransaction();
-      return wishList;
-    } catch (err) {
-      await queryRunner.rollbackTransaction();
-    } finally {
-      await queryRunner.release();
+  async create(
+    createWishlistDto: CreateWishlistDto,
+    owner: User,
+  ): Promise<Wishlist> {
+    const items = [];
+    const { image, name } = createWishlistDto;
+    for (const itemId of createWishlistDto.itemsId) {
+      items.push(await this.wishesService.findOne(itemId));
     }
+    return await this.wishlistsRepository.save({
+      image,
+      name,
+      owner,
+      items,
+    });
   }
 
-  async findOne(id: number) {
+  async findOne(id: number): Promise<Wishlist> {
     const wishlist = await this.wishlistsRepository.findOne({
       where: { id },
       relations: ['owner', 'items'],
     });
 
     if (!wishlist) {
-      throw new ServerException(ErrorCode.WishlistNotFound);
+      throw new BadRequestException('Список подарков не найден');
     }
 
     return wishlist;
   }
 
-  async removeOne(userId: number, wishListId: number) {
-    const wishlist = await this.findOne(wishListId);
-
-    if (userId !== wishlist.owner.id) {
-      throw new ServerException(ErrorCode.WishNotFound);
+  async updateOne(
+    id: number,
+    updateWishlistDto: UpdateWishlistDto,
+    user: User,
+  ): Promise<Wishlist> {
+    const wishlist = await this.wishlistsRepository.findOne({
+      where: { id },
+      relations: { owner: true, items: true },
+    });
+    let items;
+    if (updateWishlistDto.itemsId) {
+      items = await this.wishesService.findManyById(
+        updateWishlistDto.itemsId as number[],
+      );
     }
+    if (user.id !== wishlist?.owner?.id) {
+      throw new BadRequestException('Что то не так');
+    }
+    await this.wishlistsRepository.save({
+      id: wishlist.id,
+      items: items ? items : wishlist.items,
+      name: updateWishlistDto.name ? updateWishlistDto.name : wishlist?.name,
+      image: updateWishlistDto.image
+        ? updateWishlistDto.image
+        : wishlist?.image,
+      owner: wishlist.owner,
+    });
+    return await this.wishlistsRepository.findOne({
+      where: { id },
+      relations: { owner: true, items: true },
+    });
+  }
 
-    return await this.wishlistsRepository.delete(wishListId);
+  async remove(id: number, user: User): Promise<Wishlist> {
+    const wishlist = await this.wishlistsRepository.findOne({
+      where: { id },
+      relations: { owner: true },
+    });
+    if (user.id !== wishlist.owner.id) {
+      throw new BadRequestException('Что то не так');
+    }
+    return await this.wishlistsRepository.remove(wishlist);
   }
 }

@@ -1,45 +1,56 @@
-import { Injectable } from '@nestjs/common';
-import { UsersService } from 'src/users/users.service';
+import { ConflictException, Injectable } from '@nestjs/common';
+import { UsersService } from '../users/users.service';
+import { CreateUserDto } from '../users/dto/create-user.dto';
+import { User } from 'src/users/entities/user.entity';
 import { JwtService } from '@nestjs/jwt';
 import { HashService } from 'src/hash/hash.service';
-import { User } from 'src/users/entity/user.entity';
 
 @Injectable()
 export class AuthService {
   constructor(
-    private readonly usersService: UsersService,
     private readonly jwtService: JwtService,
+    private readonly usersService: UsersService,
     private readonly hashService: HashService,
   ) {}
 
-  async auth(user: User): Promise<any> {
-    const payload = {
-      username: user.username,
-      sub: user.id,
-    };
-
-    return {
-      access_token: this.jwtService.sign(payload),
-    };
-  }
-
-  async validateUser(username: string, password: string): Promise<any> {
-    const user = await this.usersService.findByUsername(username);
-
-    if (!user) return null;
-
-    const verifyPassword = await this.hashService.verifyPassword(
-      password,
-      user.password,
+  async create(createUserDto: CreateUserDto) {
+    const userByName = await this.usersService.findOne(
+      'username',
+      createUserDto.username,
     );
 
-    if (verifyPassword) {
-      // eslint-disable-next-line @typescript-eslint/no-unused-vars
-      const { password, ...result } = user;
+    const userByEmail = await this.usersService.findOne(
+      'email',
+      createUserDto.email,
+    );
 
-      return result;
-    }
+    if (userByName || userByEmail)
+      throw new ConflictException(
+        'Пользователь с таким email или username уже зарегистрирован',
+      );
 
-    return null;
+    return this.usersService.create(createUserDto);
+  }
+
+  async validateUser(username: string, password: string): Promise<User> {
+    const existUser = await this.usersService.findOne('username', username);
+
+    if (!existUser || !this.hashService.compare(password, existUser.password))
+      return null;
+
+    return existUser;
+  }
+
+  async login(user: User) {
+    const { id, username, email } = user;
+    return {
+      id,
+      username,
+      email,
+      access_token: this.jwtService.sign({
+        id: user.id,
+        username: user.username,
+      }),
+    };
   }
 }
