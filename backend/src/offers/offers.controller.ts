@@ -1,39 +1,33 @@
 import {
   Controller,
-  Get,
-  Post,
-  Body,
-  Param,
   UseGuards,
-  Req,
+  Request,
+  Body,
+  Post,
+  Get,
+  Param,
 } from '@nestjs/common';
+import { JwtGuard } from '../auth/guards/jwt.guard';
 import { OffersService } from './offers.service';
 import { CreateOfferDto } from './dto/create-offer.dto';
-import { JwtAuthGuard } from 'src/auth/guards/jwt-auth.guard';
-import { Offer } from './entities/offer.entity';
 
 @Controller('offers')
+@UseGuards(JwtGuard)
 export class OffersController {
   constructor(private readonly offersService: OffersService) {}
 
   @Post()
-  @UseGuards(JwtAuthGuard)
-  async create(
-    @Body() createOfferDto: CreateOfferDto,
-    @Req() req,
-  ): Promise<Offer> {
-    return this.offersService.create(createOfferDto, req.user);
+  create(@Body() createOfferDto: CreateOfferDto, @Request() req) {
+    return this.offersService.create(createOfferDto, req.user.id);
   }
 
   @Get()
-  @UseGuards(JwtAuthGuard)
-  async getAll(): Promise<Offer[]> {
-    return this.offersService.findMany();
+  getAllOffers() {
+    return this.offersService.getAllOffers();
   }
 
   @Get(':id')
-  @UseGuards(JwtAuthGuard)
-  async getOne(@Param('id') id: number): Promise<Offer> {
+  findOne(@Param('id') id: number) {
     return this.offersService.findOne(id);
   }
 }

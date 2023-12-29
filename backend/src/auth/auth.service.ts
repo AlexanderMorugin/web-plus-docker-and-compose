@@ -1,56 +1,28 @@
-import { ConflictException, Injectable } from '@nestjs/common';
-import { UsersService } from '../users/users.service';
-import { CreateUserDto } from '../users/dto/create-user.dto';
-import { User } from 'src/users/entities/user.entity';
+import { Injectable } from '@nestjs/common';
+import * as bycrypt from 'bcrypt';
 import { JwtService } from '@nestjs/jwt';
-import { HashService } from 'src/hash/hash.service';
+import { UsersService } from '../users/users.service';
+import { User } from '../users/entity/users.entity';
 
 @Injectable()
 export class AuthService {
   constructor(
-    private readonly jwtService: JwtService,
-    private readonly usersService: UsersService,
-    private readonly hashService: HashService,
+    private usersService: UsersService,
+    private jwtServise: JwtService,
   ) {}
 
-  async create(createUserDto: CreateUserDto) {
-    const userByName = await this.usersService.findOne(
-      'username',
-      createUserDto.username,
-    );
-
-    const userByEmail = await this.usersService.findOne(
-      'email',
-      createUserDto.email,
-    );
-
-    if (userByName || userByEmail)
-      throw new ConflictException(
-        'Пользователь с таким email или username уже зарегистрирован',
-      );
-
-    return this.usersService.create(createUserDto);
+  async auth(user: User) {
+    const payload = { sub: user.id };
+    return { access_token: this.jwtServise.sign(payload, { expiresIn: '7d' }) };
   }
 
-  async validateUser(username: string, password: string): Promise<User> {
-    const existUser = await this.usersService.findOne('username', username);
-
-    if (!existUser || !this.hashService.compare(password, existUser.password))
-      return null;
-
-    return existUser;
-  }
-
-  async login(user: User) {
-    const { id, username, email } = user;
-    return {
-      id,
-      username,
-      email,
-      access_token: this.jwtService.sign({
-        id: user.id,
-        username: user.username,
-      }),
-    };
+  async validatePassword(username: string, password: string) {
+    const user = await this.usersService.findUserByName(username);
+    const matched = await bycrypt.compare(password, user.password);
+    if (matched) {
+      const { password, ...saveUser } = user;
+      return saveUser;
+    }
+    return null;
   }
 }

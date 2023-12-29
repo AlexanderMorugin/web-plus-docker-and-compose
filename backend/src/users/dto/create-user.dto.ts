@@ -1,39 +1,21 @@
-import {
-  IsEmail,
-  IsNotEmpty,
-  IsOptional,
-  IsString,
-  IsUrl,
-  MaxLength,
-  MinLength,
-} from 'class-validator';
+import { IsEmail, IsOptional, IsString, IsUrl, Length } from 'class-validator';
 
 export class CreateUserDto {
   @IsString()
-  @IsNotEmpty()
-  @MinLength(2, {
-    message: 'Имя пользователя должно быть не менее 2 символов',
-  })
-  @MaxLength(30, {
-    message: 'Имя пользователя должно быть не более 30 символов',
-  })
   username: string;
 
   @IsString()
   @IsOptional()
+  @Length(0, 200)
   about: string;
 
-  @IsOptional()
   @IsUrl()
+  @IsOptional()
   avatar: string;
 
-  @IsNotEmpty()
   @IsEmail()
   email: string;
 
   @IsString()
-  @MinLength(6, {
-    message: 'Пароль должен быть не менее 6 символов',
-  })
   password: string;
 }

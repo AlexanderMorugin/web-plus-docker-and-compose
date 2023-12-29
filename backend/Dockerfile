@@ -1,16 +1,15 @@
-FROM node:16-alpine AS builder
+FROM node:16 AS builder
 WORKDIR /app
 COPY package*.json ./
 RUN npm i
 COPY . .
 RUN npm run build
 
-FROM node:16-alpine AS production
+FROM node:16 AS backend
 WORKDIR /app
-COPY --from=builder /app/package*.json ./
-RUN npm i --omit=dev
-COPY --from=builder /app/ecosystem.config.js ./
+COPY package*.json ./
+RUN npm i --omit=dev && npm i -g pm2
 COPY --from=builder /app/dist ./dist
-RUN npm install pm2 -g
+COPY ./ecosystem.config.js .
 EXPOSE 3000
 CMD ["pm2-runtime", "start", "ecosystem.config.js"]

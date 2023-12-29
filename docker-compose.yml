@@ -1,62 +1,43 @@
-version: "3"
-services:
+version: '3'
 
+services:
   backend:
-    container_name: kupipodariday-backend
-    build: 
-      context: ./backend
+    container_name: 'backend'
+    build:
+      context: backend
       dockerfile: Dockerfile
-    env_file: 
-      - ./backend/.env
-    restart: always
-    ports:
-      - "4000:3000"
     networks:
-      - network
-      - database-network
-    links:
-      - postgres
+      - backend  
+    env_file: ./backend/.env
+    restart: unless-stopped
+    ports:
+      - 4000:3000
     depends_on:
       - postgres
 
-  frontend:
-    container_name: kupipodariday-frontend
-    build: 
-      context: ./frontend
-      dockerfile: Dockerfile
-    ports:
-      - "8081:80"
-    networks:
-      - network
-    restart: always   
-
   postgres:
-    container_name: postgres
-    image: "postgres:12"
+    container_name: 'database'
+    image: postgres:12-alpine
     networks:
-      - database-network
-    # ports:
-    #   - "5432:5432"
+      - backend
+    restart: unless-stopped
+    ports:
+      - 5432:5432
+    env_file: ./backend/.env
     volumes:
-      # - postgres_data:/data/database
-      # - volume:/var/lib/postgresql/data
-      # - postgres_data:/data/postgres
-      - volume:/data/postgres
-    env_file: 
-      - ./backend/.env
-    restart: always  
+      - pg_data:/var/lib/postgresql/data/pgdata
+
+  frontend:
+    container_name: 'frontend'
+    build:
+      context: frontend
+      dockerfile: Dockerfile
+    restart: unless-stopped  
+    ports:
+      - 8081:80
 
 volumes:
-  volume:
-    driver: local    
-
-# networks:
-#   database-network: {}
+  pg_data:
 
 networks:
-  network:
-    driver: bridge
-  database-network: 
-    driver: bridge
-    internal: true
-    
+  backend:
