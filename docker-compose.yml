@@ -16,7 +16,7 @@ services:
       - postgres
 
   postgres:
-    container_name: 'database'
+    container_name: postgres
     image: postgres:12-alpine
     networks:
       - backend
@@ -26,6 +26,7 @@ services:
     env_file: ./backend/.env
     volumes:
       - pg_data:/var/lib/postgresql/data/pgdata
+      # - pg_data:/data/postgres
 
   frontend:
     container_name: 'frontend'
