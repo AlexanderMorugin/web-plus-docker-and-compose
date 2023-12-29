@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-unused-vars */
 import { Injectable } from '@nestjs/common';
 import * as bycrypt from 'bcrypt';
 import { JwtService } from '@nestjs/jwt';
@@ -6,6 +7,7 @@ import { User } from '../users/entity/users.entity';
 
 @Injectable()
 export class AuthService {
+  validateUser: any;
   constructor(
     private usersService: UsersService,
     private jwtServise: JwtService,
